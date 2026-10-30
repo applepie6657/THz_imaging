@@ -22,6 +22,7 @@ VELOCITY = 10.0
 ACCELERATION = 0.0  # 0 uses the acceleration configured in the controller.
 MOVE_TIMEOUT = 60.0  # Seconds allowed for each motor move.
 POLL_INTERVAL = 0.2  # Seconds between motor state queries.
+SETTLE_TIME = 0.5  #wait for stability
 RETURN_TO_ORIGIN = True
 ORIGIN_TIMEOUT = 120.0  # Seconds allowed for each origin move.
 
@@ -70,6 +71,7 @@ def move_and_wait(card, axis_id, distance):
             result, running = card.MoCtrCard_IsAxisRunning(axis_id)
             require_ok(result, "Read motor running state")
             if not running:
+                time.sleep(SETTLE_TIME)
                 return
             if time.monotonic() - start_time >= MOVE_TIMEOUT:
                 raise TimeoutError(
