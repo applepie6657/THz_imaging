@@ -2,3 +2,5 @@ pyvisa
 pyvisa-py
 pyserial
 click
+numpy
+matplotlib

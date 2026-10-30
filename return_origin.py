@@ -10,8 +10,8 @@ from pyMcc import MoCtrlCard
 X_SPEED = 10
 Y_SPEED = 10
 
-ORIGIN_X = -3.7460
-ORIGIN_Y = -52.2690
+ORIGIN_X = 5.000
+ORIGIN_Y = 6.000
 
 AXIS_X = 0
 AXIS_Y = 1
