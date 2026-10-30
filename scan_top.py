@@ -24,6 +24,7 @@ MOVE_TIMEOUT = 60.0  # Seconds allowed for each motor move.
 POLL_INTERVAL = 0.2  # Seconds between motor state queries.
 STATUS_QUERY_RETRIES = 3  # Retries for a transient controller status failure.
 STATUS_QUERY_RETRY_DELAY = 0.3  # Seconds between status-query retries.
+SETTLE_TIME = 0.5  # Seconds to wait after the controller reports motion complete.
 RETURN_TO_ORIGIN = True
 ORIGIN_TIMEOUT = 120.0  # Seconds allowed for each origin move.
 
@@ -54,6 +55,8 @@ def validate_config(card):
             "STATUS_QUERY_RETRIES must be at least 1 and "
             "STATUS_QUERY_RETRY_DELAY must not be negative."
         )
+    if SETTLE_TIME < 0:
+        raise ValueError("SETTLE_TIME must not be negative.")
     if ORIGIN_TIMEOUT <= 0:
         raise ValueError("ORIGIN_TIMEOUT must be greater than 0.")
     if VISA_TIMEOUT_MS <= 0:
@@ -110,6 +113,7 @@ def move_and_wait(card, axis_id, distance):
         while True:
             running = read_axis_running(card, axis_id)
             if not running:
+                time.sleep(SETTLE_TIME)
                 return
             if time.monotonic() - start_time >= MOVE_TIMEOUT:
                 raise TimeoutError(
