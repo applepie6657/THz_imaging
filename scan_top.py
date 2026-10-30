@@ -13,7 +13,7 @@ from return_origin import return_to_origin
 
 
 # Adjust scan and connection parameters here before running.
-MOTOR_PORT = "COM3"
+MOTOR_PORT = "COM7"
 AXIS_ID = 2  # 0=X, 1=Y, 2=Z, 3=T
 POINTS = 10
 STEP_DISTANCE = 1.0  # Sign selects the direction.
