@@ -62,7 +62,7 @@ python test_move.py
 
 ## 电机移动与频谱数据扫描
 
-`scan_top.py` 每个采样点先让指定轴相对移动一步，等待电机停止，再执行频谱仪 Marker 1 的峰值搜索并读取频率和功率。扫描开始位置使用控制器当前坐标；程序不会执行复位或回零，运行前请先调用已有的复位流程并确认坐标、方向和行程。
+`scan_top.py` 默认在扫描前调用 `return_origin.py` 的 `return_to_origin()`，依次将 X、Y 轴移动到配置的实验默认位置，然后对选定轴逐点相对移动并读取频谱仪 Marker 1 峰值。此操作不清零坐标、不执行硬件回零。运行前确认 `return_origin.py` 中的原点坐标和速度适用于当前机械台及坐标系，并确认运动区域和行程安全。若不需要扫描前回到原点，可在 `scan_top.py` 将 `RETURN_TO_ORIGIN` 设为 `False`。
 
 直接编辑 `scan_top.py` 文件顶部的配置参数（串口、轴号、点数、步距、速度、加速度、超时和 VISA 地址），然后运行：
 
@@ -106,7 +106,7 @@ return_to_origin(
 )
 ```
 
-函数签名为 `return_to_origin(com_port, x_speed, y_speed, timeout=120, confirm=True)`：`timeout` 为单轴运动超时时间（秒）；默认 `confirm=True`，通过函数调用时也会要求输入 `YES`。返回 `True` 表示复位成功，返回 `False` 表示取消或失败。检测程序应检查返回值，确认复位成功后再开始检测。
+函数签名为 `return_to_origin(com_port, x_speed, y_speed, timeout=120, confirm=True, verbose=True)`：`timeout` 为单轴运动超时时间（秒）；默认 `confirm=True`，通过函数调用时也会要求输入 `YES`。`verbose=False` 可关闭详细过程打印。返回 `True` 表示复位成功，返回 `False` 表示取消或失败。`scan_top.py` 会在启动扫描前调用该函数，关闭交互确认和详细打印，并在复位失败时停止扫描。
 
 程序按每轴最终位置误差不超过 `0.01 mm` 判断到位。运行期间应保持运动区域空旷；不要将关闭串口连接视为停止运动，必要时使用设备硬件急停。
 

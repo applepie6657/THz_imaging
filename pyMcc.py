@@ -440,11 +440,12 @@ class MoCtrlCard:
         ret(INT):1 - stand for OK; 2 - stand for ERROR
         '''
         ret = self.FUNRESOK
-        if (self.__comPort.is_open()):
+        if self.__comPort.is_open:
             self.__comPort.close()
 
-        if (self.self.__netHandle):
+        if self.__netHandle:
             self.__netHandle.close()
+            self.__netHandle = 0
 
         return ret
 

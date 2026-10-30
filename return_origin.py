@@ -25,7 +25,8 @@ def return_to_origin(
     x_speed,
     y_speed,
     timeout=120,
-    confirm=True
+    confirm=True,
+    verbose=True,
 ):
     """
     将机械台移动到用户定义的 XY 原点。
@@ -36,6 +37,7 @@ def return_to_origin(
         y_speed  : Y轴运动速度
         timeout  : 单轴运动超时时间，单位秒
         confirm  : 是否要求人工确认
+        verbose  : 是否打印详细复位过程
 
     返回：
         True  : 复位成功
@@ -43,46 +45,49 @@ def return_to_origin(
     """
 
     mcc = MoCtrlCard()
+    def log(*args, **kwargs):
+        if verbose:
+            print(*args, **kwargs)
 
     try:
         # 1. 初始化控制器
-        print("=" * 45)
-        print("开始执行机械台原点复位")
-        print("=" * 45)
+        log("=" * 45)
+        log("开始执行机械台原点复位")
+        log("=" * 45)
 
         ret = mcc.MoCtrCard_Initial(com_port)
 
         if ret != mcc.FUNRESOK:
-            print("控制器初始化失败！")
+            log("控制器初始化失败！")
             return False
 
-        print("控制器连接成功！")
+        log("控制器连接成功！")
 
         # 2. 读取当前 XY 位置
         ret_x, pos_x = mcc.MoCtrCard_GetAxisPos(AXIS_X)
         ret_y, pos_y = mcc.MoCtrCard_GetAxisPos(AXIS_Y)
 
         if ret_x != mcc.FUNRESOK or ret_y != mcc.FUNRESOK:
-            print("读取机械台当前位置失败！")
+            log("读取机械台当前位置失败！")
             return False
 
         current_x = pos_x[0]
         current_y = pos_y[0]
 
-        print(f"\n当前 X 位置：{current_x:.4f}")
-        print(f"当前 Y 位置：{current_y:.4f}")
+        log(f"\n当前 X 位置：{current_x:.4f}")
+        log(f"当前 Y 位置：{current_y:.4f}")
 
-        print("\n目标原点：")
-        print(f"X = {ORIGIN_X:.4f}")
-        print(f"Y = {ORIGIN_Y:.4f}")
+        log("\n目标原点：")
+        log(f"X = {ORIGIN_X:.4f}")
+        log(f"Y = {ORIGIN_Y:.4f}")
 
         # 3. 计算移动距离
         dx = ORIGIN_X - current_x
         dy = ORIGIN_Y - current_y
 
-        print("\n预计移动距离：")
-        print(f"X 轴：{dx:.4f}")
-        print(f"Y 轴：{dy:.4f}")
+        log("\n预计移动距离：")
+        log(f"X 轴：{dx:.4f}")
+        log(f"Y 轴：{dy:.4f}")
 
         if confirm:
             answer = input(
@@ -96,7 +101,7 @@ def return_to_origin(
         # 4. 定义单轴绝对运动函数
         def move_axis(axis, target, speed, name):
 
-            print(f"\n正在复位 {name} 轴...")
+            log(f"\n正在复位 {name} 轴...")
 
             # 发送绝对位置运动指令
             ret = mcc.MoCtrCard_MCrlAxisAbsMove(
@@ -107,7 +112,7 @@ def return_to_origin(
             )
 
             if ret != mcc.FUNRESOK:
-                print(f"{name} 轴运动指令发送失败！")
+                log(f"{name} 轴运动指令发送失败！")
                 return False
 
             time.sleep(0.2)
@@ -120,24 +125,24 @@ def return_to_origin(
                 ret, running = mcc.MoCtrCard_IsAxisRunning(axis)
 
                 if ret != mcc.FUNRESOK:
-                    print(f"{name} 轴状态读取失败！")
+                    log(f"{name} 轴状态读取失败！")
                     mcc.MoCtrCard_EmergencyStopAxisMov(axis)
                     return False
 
                 ret, pos = mcc.MoCtrCard_GetAxisPos(axis)
 
                 if ret != mcc.FUNRESOK:
-                    print(f"{name} 轴位置读取失败！")
+                    log(f"{name} 轴位置读取失败！")
                     mcc.MoCtrCard_EmergencyStopAxisMov(axis)
                     return False
 
-                print(f"{name} 轴当前位置：{pos[0]:.4f}")
+                log(f"{name} 轴当前位置：{pos[0]:.4f}")
 
                 if running == 0:
                     break
 
                 if time.time() - start_time > timeout:
-                    print(f"{name} 轴运动超时！")
+                    log(f"{name} 轴运动超时！")
                     mcc.MoCtrCard_EmergencyStopAxisMov(axis)
                     return False
 
@@ -151,13 +156,13 @@ def return_to_origin(
 
             error = abs(final_pos[0] - target)
 
-            print(f"{name} 轴最终位置：{final_pos[0]:.4f}")
+            log(f"{name} 轴最终位置：{final_pos[0]:.4f}")
 
             if error > 0.01:
-                print(f"{name} 轴未到达目标位置，误差：{error:.4f}")
+                log(f"{name} 轴未到达目标位置，误差：{error:.4f}")
                 return False
 
-            print(f"{name} 轴复位成功！")
+            log(f"{name} 轴复位成功！")
             return True
 
         # 5. 依次复位 X、Y 轴
@@ -170,20 +175,20 @@ def return_to_origin(
             return False
 
         # 6. 复位完成
-        print("\n" + "=" * 45)
-        print("机械台原点复位完成！")
-        print(f"X = {ORIGIN_X:.4f}")
-        print(f"Y = {ORIGIN_Y:.4f}")
-        print("=" * 45)
+        log("\n" + "=" * 45)
+        log("机械台原点复位完成！")
+        log(f"X = {ORIGIN_X:.4f}")
+        log(f"Y = {ORIGIN_Y:.4f}")
+        log("=" * 45)
 
         return True
 
     except KeyboardInterrupt:
-        print("\n用户中断操作！")
+        log("\n用户中断操作！")
         return False
 
     except Exception as e:
-        print("发生异常：", e)
+        log("发生异常：", e)
         return False
 
     finally:

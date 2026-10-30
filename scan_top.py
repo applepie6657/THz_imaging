@@ -7,6 +7,9 @@ from datetime import datetime
 
 import pyvisa
 from pyMcc import MoCtrlCard
+from return_origin import X_SPEED as ORIGIN_X_SPEED
+from return_origin import Y_SPEED as ORIGIN_Y_SPEED
+from return_origin import return_to_origin
 
 
 # Adjust scan and connection parameters here before running.
@@ -18,6 +21,8 @@ VELOCITY = 1.0
 ACCELERATION = 0.0  # 0 uses the acceleration configured in the controller.
 MOVE_TIMEOUT = 60.0  # Seconds allowed for each motor move.
 POLL_INTERVAL = 0.2  # Seconds between motor state queries.
+RETURN_TO_ORIGIN = True
+ORIGIN_TIMEOUT = 120.0  # Seconds allowed for each origin move.
 
 VISA_ADDRESS = "TCPIP0::192.168.31.14::5025::SOCKET"
 VISA_TIMEOUT_MS = 10000
@@ -41,6 +46,8 @@ def validate_config(card):
         raise ValueError("ACCELERATION must not be negative.")
     if MOVE_TIMEOUT <= 0 or POLL_INTERVAL <= 0:
         raise ValueError("MOVE_TIMEOUT and POLL_INTERVAL must be greater than 0.")
+    if ORIGIN_TIMEOUT <= 0:
+        raise ValueError("ORIGIN_TIMEOUT must be greater than 0.")
     if VISA_TIMEOUT_MS <= 0:
         raise ValueError("VISA_TIMEOUT_MS must be greater than 0.")
 
@@ -152,10 +159,6 @@ def main():
             "scan_top_{}.csv".format(datetime.now().strftime("%Y%m%d_%H%M%S")),
         )
 
-        print("Initializing motor controller.")
-        result = card.MoCtrCard_Initial(MOTOR_PORT)
-        require_ok(result, "Initialize motor controller")
-
         print("Connecting to spectrum analyzer.")
         resource_manager = pyvisa.ResourceManager("@py")
         instrument = resource_manager.open_resource(
@@ -164,6 +167,22 @@ def main():
         instrument.timeout = VISA_TIMEOUT_MS
         instrument.read_termination = "\n"
         instrument.write_termination = "\n"
+
+        if RETURN_TO_ORIGIN:
+            print("Returning stage to the configured default origin.")
+            if not return_to_origin(
+                com_port=MOTOR_PORT,
+                x_speed=ORIGIN_X_SPEED,
+                y_speed=ORIGIN_Y_SPEED,
+                timeout=ORIGIN_TIMEOUT,
+                confirm=False,
+                verbose=False,
+            ):
+                raise RuntimeError("Could not return the stage to the configured origin.")
+
+        print("Initializing motor controller for scanning.")
+        result = card.MoCtrCard_Initial(MOTOR_PORT)
+        require_ok(result, "Initialize motor controller for scanning")
 
         print("Starting scan.")
         run_scan(card, instrument, output_path)
