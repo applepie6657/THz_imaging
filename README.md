@@ -1,26 +1,70 @@
 # THz_imaging
 
-太赫兹成像实验相关的仪器发现与频谱峰值读取脚本。
+太赫兹成像实验相关的 Python 脚本，包含仪器发现、频谱峰值读取和机械运动控制。
 
-## 文件
+## 文件说明
 
-- `scan_devices.py`：通过 PyVISA 发现仪器，并扫描指定局域网网段的 SCPI 端口。
-- `read_peak_test.py`：连接 R&S FSW-50，执行峰值搜索并读取频率和功率。
+| 文件 | 功能 |
+| --- | --- |
+| `scan_devices.py` | 通过 PyVISA 发现仪器，并扫描指定局域网网段的 SCPI 端口。 |
+| `read_peak_test.py` | 连接 R&S FSW-50，执行峰值搜索并读取频率和功率。 |
+| `pyMcc.py` | 提供 `MoCtrlCard` 运动控制接口，包括串口/网络连接、位置和状态查询、单轴/轴组运动等。 |
+| `demo.py` | 运动控制示例，包含单轴往返、轴组运动和输入输出查询等测试函数。 |
+| `test_move.py` | 交互式单轴相对运动测试：选择串口和轴号，输入距离和速度，确认后执行并监测运动。 |
+| `requirements.txt` | Python 第三方依赖清单。 |
 
-## 使用方法
+`__pycache__` 是 Python 自动生成的缓存目录，已通过 `.gitignore` 排除，无需下载或提交。
 
-需要 Python 3 和可通过局域网访问的实验仪器。
+## 环境与依赖
+
+需要 Python 3，以及相应的实验仪器或运动控制器。串口连接需要系统能够识别控制器的 COM 端口，必要时先安装设备对应的驱动。
 
 ```powershell
+git clone https://github.com/applepie6657/THz_imaging.git
+cd THz_imaging
 python -m pip install -r requirements.txt
+```
+
+依赖包括：
+
+- `pyvisa`、`pyvisa-py`：仪器通信，使用 `@py` 后端。
+- `pyserial`：运动控制器串口通信，代码中的导入名称为 `serial`。
+- `click`：`demo.py` 的命令行参数支持。
+
+部分 VISA 资源发现功能可能需要额外的网络依赖或系统配置。
+
+## 仪器发现与峰值读取
+
+1. 将电脑和仪器连接到可互通的实验局域网。
+2. 按实验环境修改 `scan_devices.py` 中的 `TARGET_SUBNET`，以及 `read_peak_test.py` 中的 `ADDRESS`。
+3. 根据需要分别运行：
+
+```powershell
 python scan_devices.py
 python read_peak_test.py
 ```
 
-运行前，请按实验环境修改 `scan_devices.py` 中的 `TARGET_SUBNET` 和 `read_peak_test.py` 中的 `ADDRESS`。默认值为实验局域网示例地址。请仅在有权访问的网络和仪器上运行扫描；峰值读取脚本会更改仪器的 Marker 设置。
+默认 IP 和网段是实验配置示例。请仅在有权访问的网络和仪器上扫描。峰值读取脚本会更改仪器的 Marker 设置。
 
-使用 `pyvisa-py` 后端；部分资源发现功能可能需要额外的网络依赖或系统配置。当前代码需在实际仪器上验证。
+## 机械台单轴运动测试
+
+确保 `test_move.py` 与 `pyMcc.py` 位于同一目录，然后运行：
+
+```powershell
+python test_move.py
+```
+
+按照提示选择控制器的 COM 端口、轴号（脚本标注为 `0-X`、`1-Y`、`2-Z`、`3-T`），输入带正负号的相对距离和正数速度。核对参数后输入 `YES`，程序才会发送运动指令。
+
+运行前须确认实际轴映射、距离/速度的物理单位、行程和运动方向，并保持运动区域空旷。脚本在等待超过 60 秒或收到 `Ctrl+C` 时会尝试发送急停指令；通信失败时软件急停可能无法送达，操作时应能使用设备的硬件急停。
+
+## 其他运动控制示例
+
+- `demo.py`：运行后列出串口并提示输入端口，随后初始化控制器。文件末尾的三个测试函数调用默认全部注释；需要测试时，阅读对应函数并按需启用其中一个，核对运动参数后再运行。
+- `pyMcc.py`：通常通过 `from pyMcc import MoCtrlCard` 导入。直接运行此文件会进入内置硬件测试，默认使用 `COM3`，并包含轴组相对运动指令；请先检查文件末尾的端口、测试分支和运动参数。
+
+当前脚本仍需结合实际硬件验证，上传仓库不代表已经完成设备联调。
 
 ## 许可
 
-本项目采用 MIT 许可证，允许使用、修改和再分发，具体见 `LICENSE`。
+本项目采用 MIT 许可证，具体见 `LICENSE`。外部来源代码如有单独的许可或版权要求，应同时遵守其原始条款。

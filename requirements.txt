@@ -1,2 +1,4 @@
 pyvisa
 pyvisa-py
+pyserial
+click
