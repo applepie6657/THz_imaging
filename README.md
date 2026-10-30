@@ -3,8 +3,8 @@
 太赫兹成像实验相关的 Python 脚本，包含仪器发现、频谱峰值读取和机械运动控制。
 
 ## 操作说明【必读】
-*revision:2026.10.30 14：00，宋品逢*
-- 如需要手动控制机械台移动，用于找初始位置。直接云心manual_stage_control.py.
+*revision:2026.10.30*
+- 如需要手动控制机械台移动，用于找初始位置，运行 `manual_stage_control.py`。
 - 如需要自行规定初始位置，只需要修改return_origin.py中的`ORIGIN_X`和`ORIGIN_Y`参数。
 - 如需要运行扫描，修改scan_top.py文件中的`X_POINTS`、`VELOCITY `、`X_STEP_DISTANCE`等参数,然后运行scan_top.py进行扫描，扫描结果保存在img_output文件夹下，以csv格式保存。
 - 如需对扫描结果进行绘图，运行plot_scan.py，注意修改运行时参数为所需要绘图的csv文件。
@@ -23,10 +23,10 @@
 | 文件 | 功能 |
 | --- | --- |
 | `scan_devices.py` | 通过 PyVISA 发现仪器，并扫描指定局域网网段的 SCPI 端口。 |
-| `read_peak_test.py` | 连接 R&S FSW-50，执行峰值搜索并读取频率和功率。 |
+| `test/read_peak_test.py` | 连接 R&S FSW-50，执行峰值搜索并读取频率和功率。 |
 | `scan_top.py` | 每次移动机械台后读取一次频谱峰值，并将位置、频率和功率保存为 CSV。 |
 | `pyMcc.py` | 提供 `MoCtrlCard` 运动控制接口，包括串口/网络连接、位置和状态查询、单轴/轴组运动等。 |
-| `test_move.py` | 交互式单轴相对运动测试：选择串口和轴号，输入距离和速度，确认后执行并监测运动。 |
+| `test/test_move.py` | 交互式单轴相对运动测试：选择串口和轴号，输入距离和速度，确认后执行并监测运动。 |
 | `return_origin.py` | 检测前将机械台依次移动到本次实验的 X、Y 中心绝对位置，支持直接运行或导入函数调用。 |
 | `requirements.txt` | Python 第三方依赖清单。 |
 
@@ -34,18 +34,27 @@
 
 ## 环境与依赖
 
-需要 Python 3，以及相应的实验仪器或运动控制器。串口连接需要系统能够识别控制器的 COM 端口，必要时先安装设备对应的驱动。
+需要 Python 3，以及相应的实验仪器或运动控制器。项目统一使用 Conda 环境 `py37`；串口连接需要系统能够识别控制器的 COM 端口，必要时先安装设备对应的驱动。
 
 ```powershell
 git clone https://github.com/applepie6657/THz_imaging.git
 cd THz_imaging
-python -m pip install -r requirements.txt
+conda activate py37
+```
+
+如果当前 shell 没有执行 Conda 激活，也可以显式指定环境运行：
+
+```powershell
+conda run -n py37 python scan_top.py
 ```
 
 依赖包括：
 
 - `pyvisa`、`pyvisa-py`：仪器通信，使用 `@py` 后端。
 - `pyserial`：运动控制器串口通信，代码中的导入名称为 `serial`。
+- `numpy`、`matplotlib`：扫描结果重建和绘图。
+
+`py37` 环境已经安装项目依赖。不要在系统 Python 或其他虚拟环境中运行本项目。
 
 部分 VISA 资源发现功能可能需要额外的网络依赖或系统配置。
 
@@ -57,17 +66,17 @@ python -m pip install -r requirements.txt
 
 ```powershell
 python scan_devices.py
-python read_peak_test.py
+python test/read_peak_test.py
 ```
 
 默认 IP 和网段是实验配置示例。请仅在有权访问的网络和仪器上扫描。峰值读取脚本会更改仪器的 Marker 设置。
 
 ## 机械台单轴运动测试
 
-确保 `test_move.py` 与 `pyMcc.py` 位于同一目录，然后运行：
+从项目根目录运行：
 
 ```powershell
-python test_move.py
+python test/test_move.py
 ```
 
 按照提示选择控制器的 COM 端口、轴号（脚本标注为 `0-X`、`1-Y`、`2-Z`、`3-T`），输入带正负号的相对距离和正数速度。核对参数后输入 `YES`，程序才会发送运动指令。
@@ -85,13 +94,13 @@ python test_move.py
 - `Q`：退出控制。
 - `Ctrl+C`：尝试停止 X、Y 两轴并退出。
 
-步距和速度可在脚本顶部的 `X_STEP_DISTANCE`、`Y_STEP_DISTANCE`、`VELOCITY` 中修改；默认步距为 `0.1`，默认速度为 `1.0`，加速度 `0.0` 表示使用控制器参数。每次按键是有限距离运动，不是按住持续点动。启动前确认步距、轴方向、速度、行程和硬件急停可用；软件急停无法替代硬件急停。
+步距和速度可在脚本顶部的 `X_STEP_DISTANCE`、`Y_STEP_DISTANCE`、`VELOCITY` 中修改；当前代码默认步距为 `1`，速度为 `5.0`，加速度 `0.0` 表示使用控制器参数。每次按键是有限距离运动，不是按住持续点动。启动前确认步距、轴方向、速度、行程和硬件急停可用；软件急停无法替代硬件急停。
 
 ## 电机移动与频谱数据扫描
 
 `scan_top.py` 默认在扫描前调用 `return_origin.py` 的 `return_to_origin()`，依次将 X、Y 轴移动到配置的实验默认位置，然后按蛇形路径扫描 X/Y 矩形网格并读取每个测点的频谱仪 Marker 1 峰值。此操作不清零坐标、不执行硬件回零。运行前确认 `return_origin.py` 中的原点坐标和速度适用于当前机械台及坐标系，并确认运动区域和行程安全。若不需要扫描前回到原点，可在 `scan_top.py` 将 `RETURN_TO_ORIGIN` 设为 `False`。
 
-直接编辑 `scan_top.py` 文件顶部的配置参数（串口、X/Y 点数、X/Y 步距、速度、加速度、超时、状态查询重试次数和 VISA 地址），然后运行：
+当前工作区的扫描配置为 `COM5`、`75 × 125` 个测点、X/Y 步距 `0.4 mm`，总计 `9375` 个测点。实际实验前应根据当前硬件修改这些参数。直接编辑 `scan_top.py` 文件顶部的配置参数（串口、X/Y 点数、X/Y 步距、速度、加速度、超时、状态查询重试次数、稳定等待时间和 VISA 地址），然后运行：
 
 ```powershell
 python scan_top.py
@@ -99,7 +108,7 @@ python scan_top.py
 
 扫描从开始时的当前位置（若启用回原点，则为配置的原点）作为网格首点。每轴的覆盖长度为 `(点数 - 1) × 步距绝对值`，因此点数设为 `1` 时该轴不移动；步距正负号设置方向。扫描数据自动以带时间戳的 CSV 文件保存到项目内的 `img_output` 文件夹，每行包含网格行列、X/Y 位置、步距、峰值频率和功率；程序只在控制台报告执行进度和错误。加速度设为 `0` 时使用控制器保存的参数。所有运动参数应先以低速、小步距验证，并确认行程、方向和硬件急停可用。
 
-运动控制卡的状态查询偶尔可能因串口瞬态通信失败而返回错误。`scan_top.py` 会最多重试 `STATUS_QUERY_RETRIES` 次，重试时只重新读取状态，不会重复发送上一条移动命令；连续失败后才会尝试急停并终止扫描。若多次出现该问题，应检查 USB/串口线、控制卡供电、串口占用和控制器状态，并降低运动速度或增大 `POLL_INTERVAL`。CSV 会在每个测点后立即刷新，异常终止时已完成的测点仍会保存在输出文件中，但当前脚本不会自动从中断点续扫。
+运动控制卡的状态查询偶尔可能因串口瞬态通信失败而返回错误。`scan_top.py` 会最多重试 `STATUS_QUERY_RETRIES` 次，重试时只重新读取状态，不会重复发送上一条移动命令；控制器报告停止后还会等待 `SETTLE_TIME`，再开始下一次测量。连续查询失败后才会尝试急停并终止扫描。若多次出现该问题，应检查 USB/串口线、控制卡供电、电脑睡眠/USB 挂起设置、串口占用和控制器状态，并降低运动速度或增大 `POLL_INTERVAL`。CSV 会在每个测点后立即刷新，异常终止时已完成的测点仍会保存在输出文件中，但当前脚本不会自动从中断点续扫。
 
 ### 绘制扫描图像
 
@@ -130,8 +139,8 @@ python plot_scan.py img_output\scan_top_20261030_125706.csv --platform-coordinat
 
 | 轴 | 轴号 | 中心绝对位置 |
 | --- | --- | --- |
-| X | 0 | -3.7460 mm |
-| Y | 1 | -52.2690 mm |
+| X | 0 | 5.0000 mm |
+| Y | 1 | 6.0000 mm |
 
 该操作先移动 X 轴，再移动 Y 轴，使用绝对位置运动指令；不会将当前坐标清零，也不执行硬件回零。运行前应确认控制器当前坐标系与记录中心位置时一致。实验中心变更时，请修改文件中的 `ORIGIN_X` 和 `ORIGIN_Y`。
 
