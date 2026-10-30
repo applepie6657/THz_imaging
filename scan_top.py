@@ -14,8 +14,8 @@ from return_origin import return_to_origin
 
 # Adjust scan and connection parameters here before running.
 MOTOR_PORT = "COM4"
-X_POINTS = 100
-Y_POINTS = 100
+X_POINTS = 30
+Y_POINTS = 50
 X_STEP_DISTANCE = 1.0  # Sign selects the direction.
 Y_STEP_DISTANCE = 1.0  # Sign selects the direction.
 VELOCITY = 10.0
