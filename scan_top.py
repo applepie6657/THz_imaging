@@ -13,15 +13,17 @@ from return_origin import return_to_origin
 
 
 # Adjust scan and connection parameters here before running.
-MOTOR_PORT = "COM4"
-X_POINTS = 30
-Y_POINTS = 50
-X_STEP_DISTANCE = 1.0  # Sign selects the direction.
-Y_STEP_DISTANCE = 1.0  # Sign selects the direction.
+MOTOR_PORT = "COM5"
+X_POINTS = 75
+Y_POINTS = 125
+X_STEP_DISTANCE = 0.4  # Sign selects the direction.
+Y_STEP_DISTANCE = 0.4  # Sign selects the direction.
 VELOCITY = 10.0
 ACCELERATION = 0.0  # 0 uses the acceleration configured in the controller.
 MOVE_TIMEOUT = 60.0  # Seconds allowed for each motor move.
 POLL_INTERVAL = 0.2  # Seconds between motor state queries.
+STATUS_QUERY_RETRIES = 3  # Retries for a transient controller status failure.
+STATUS_QUERY_RETRY_DELAY = 0.3  # Seconds between status-query retries.
 RETURN_TO_ORIGIN = True
 ORIGIN_TIMEOUT = 120.0  # Seconds allowed for each origin move.
 
@@ -47,6 +49,11 @@ def validate_config(card):
         raise ValueError("ACCELERATION must not be negative.")
     if MOVE_TIMEOUT <= 0 or POLL_INTERVAL <= 0:
         raise ValueError("MOVE_TIMEOUT and POLL_INTERVAL must be greater than 0.")
+    if STATUS_QUERY_RETRIES < 1 or STATUS_QUERY_RETRY_DELAY < 0:
+        raise ValueError(
+            "STATUS_QUERY_RETRIES must be at least 1 and "
+            "STATUS_QUERY_RETRY_DELAY must not be negative."
+        )
     if ORIGIN_TIMEOUT <= 0:
         raise ValueError("ORIGIN_TIMEOUT must be greater than 0.")
     if VISA_TIMEOUT_MS <= 0:
@@ -58,6 +65,40 @@ def require_ok(result, operation):
         raise RuntimeError("{} failed (controller result: {}).".format(operation, result))
 
 
+def read_axis_running(card, axis_id):
+    """Read motion state without resending the move command on a retry.
+
+    A status query can occasionally fail while the controller is still
+    processing the preceding move.  Retrying only this read is safe; retrying
+    the move itself could command the same displacement twice.
+    """
+    last_result = MoCtrlCard.FUNRESERR
+    for attempt in range(STATUS_QUERY_RETRIES):
+        result, running = card.MoCtrCard_IsAxisRunning(axis_id)
+        if result == MoCtrlCard.FUNRESOK:
+            return running
+
+        last_result = result
+        if attempt + 1 < STATUS_QUERY_RETRIES:
+            print(
+                "Warning: status query for {} axis failed "
+                "(attempt {}/{}; controller result: {}). Retrying.".format(
+                    AXIS_NAMES[axis_id],
+                    attempt + 1,
+                    STATUS_QUERY_RETRIES,
+                    result,
+                )
+            )
+            time.sleep(STATUS_QUERY_RETRY_DELAY)
+
+    raise RuntimeError(
+        "Read {} axis running state failed after {} attempts "
+        "(controller result: {}).".format(
+            AXIS_NAMES[axis_id], STATUS_QUERY_RETRIES, last_result
+        )
+    )
+
+
 def move_and_wait(card, axis_id, distance):
     result = card.MoCtrCard_MCrlAxisRelMove(
         axis_id, distance, VELOCITY, ACCELERATION
@@ -67,8 +108,7 @@ def move_and_wait(card, axis_id, distance):
     start_time = time.monotonic()
     try:
         while True:
-            result, running = card.MoCtrCard_IsAxisRunning(axis_id)
-            require_ok(result, "Read motor running state")
+            running = read_axis_running(card, axis_id)
             if not running:
                 return
             if time.monotonic() - start_time >= MOVE_TIMEOUT:
@@ -94,8 +134,7 @@ def read_peak(instrument):
 
 def run_scan(card, instrument, output_path):
     for axis_id in (X_AXIS_ID, Y_AXIS_ID):
-        result, running = card.MoCtrCard_IsAxisRunning(axis_id)
-        require_ok(result, "Read initial {} axis running state".format(AXIS_NAMES[axis_id]))
+        running = read_axis_running(card, axis_id)
         if running:
             raise RuntimeError(
                 "The {} axis is already moving; refusing to start.".format(

@@ -92,7 +92,26 @@ def cell_edges(coordinates, fallback_step, axis_name):
     return np.concatenate(([first_edge], midpoints, [last_edge]))
 
 
-def plot_scan(csv_path, output_path=None, percentiles=(2.0, 98.0)):
+def map_platform_to_object_coordinates(values, coordinates):
+    """Map platform coordinates to coordinates on the stationary object.
+
+    The sample is fixed on the stage while the scanner/platform moves.  A
+    positive platform displacement therefore makes the measured point move in
+    the negative object direction.  Reflecting around the scan-area center
+    accounts for that 180-degree (中心对称) relationship while preserving the
+    physical coordinate scale.
+    """
+    if len(coordinates) == 0:
+        raise ValueError("At least one coordinate is required for orientation mapping.")
+    return coordinates[0] + coordinates[-1] - values
+
+
+def plot_scan(
+    csv_path,
+    output_path=None,
+    percentiles=(2.0, 98.0),
+    platform_coordinates=False,
+):
     lower_percentile, upper_percentile = percentiles
     if not (0 <= lower_percentile < upper_percentile <= 100):
         raise ValueError("Percentiles must satisfy 0 <= low < high <= 100.")
@@ -103,8 +122,24 @@ def plot_scan(csv_path, output_path=None, percentiles=(2.0, 98.0)):
     # floating-point noise from creating duplicate grid coordinates.
     x_values = np.round(x_values, decimals=6)
     y_values = np.round(y_values, decimals=6)
-    x_coordinates = np.unique(x_values)
-    y_coordinates = np.unique(y_values)
+    platform_x_coordinates = np.unique(x_values)
+    platform_y_coordinates = np.unique(y_values)
+
+    # Convert the measured platform coordinates into object coordinates.  The
+    # conversion is done before constructing the grid so the image, path and
+    # start/end markers all use the same coordinate system.
+    if platform_coordinates:
+        x_coordinates = platform_x_coordinates
+        y_coordinates = platform_y_coordinates
+    else:
+        x_values = map_platform_to_object_coordinates(
+            x_values, platform_x_coordinates
+        )
+        y_values = map_platform_to_object_coordinates(
+            y_values, platform_y_coordinates
+        )
+        x_coordinates = np.unique(x_values)
+        y_coordinates = np.unique(y_values)
     power_grid = np.full(
         (len(y_coordinates), len(x_coordinates)), np.nan, dtype=float
     )
@@ -154,8 +189,9 @@ def plot_scan(csv_path, output_path=None, percentiles=(2.0, 98.0)):
     )
     colorbar = figure.colorbar(image, ax=axes, extend=extends)
     colorbar.set_label("Peak power (dBm)")
-    axes.set_xlabel("X position (mm)")
-    axes.set_ylabel("Y position (mm)")
+    coordinate_label = "platform" if platform_coordinates else "object"
+    axes.set_xlabel("X position (mm, {} coordinates)".format(coordinate_label))
+    axes.set_ylabel("Y position (mm, {} coordinates)".format(coordinate_label))
     axes.set_title(Path(csv_path).stem)
     axes.set_aspect("equal", adjustable="box")
     axes.plot(
@@ -218,6 +254,14 @@ def main():
         default=(2.0, 98.0),
         help="Color scale percentiles; default: 2 98.",
     )
+    parser.add_argument(
+        "--platform-coordinates",
+        action="store_true",
+        help=(
+            "Plot raw platform coordinates instead of the default object "
+            "coordinates (which correct the 180-degree orientation)."
+        ),
+    )
     arguments = parser.parse_args()
 
     if not arguments.csv_file.is_file():
@@ -228,6 +272,7 @@ def main():
             arguments.csv_file,
             arguments.output,
             tuple(arguments.percentiles),
+            arguments.platform_coordinates,
         )
     except (OSError, ValueError) as exc:
         parser.error(str(exc))
