@@ -4,6 +4,15 @@
 
 ## 操作说明【必读】
 *revision:2026.10.30*
+- 推荐使用统一入口 `thz_imaging.py`：先在脚本顶部的 `CONFIG` 中统一修改 COM 端口、X/Y 原点、步长、扫描点数、速度、VISA 地址和输出参数，然后运行：
+
+  ```powershell
+  conda run -n py37 python thz_imaging.py
+  ```
+
+  启动后可在命令行反复选择“回原点”“WASD 手动控制”“执行扫描”。扫描 CSV 写入完成后会立即生成同名 PNG 图片，再返回菜单。
+
+  手动控制模式与 `manual_stage_control.py` 的操作一致：`W/S` 控制 Y 轴正/负方向，`A/D` 控制 X 轴负/正方向，`Q` 退出，`Ctrl+C` 会尝试急停 X、Y 两轴。手动步长在统一入口 `CONFIG` 的 `manual_x_step_distance`、`manual_y_step_distance` 中预先修改，速度和加速度分别由 `manual_velocity`、`manual_acceleration` 设置。
 - 如需要手动控制机械台移动，用于找初始位置，运行 `manual_stage_control.py`。
 - 如需要自行规定初始位置，只需要修改return_origin.py中的`ORIGIN_X`和`ORIGIN_Y`参数。
 - 如需要运行扫描，修改scan_top.py文件中的`X_POINTS`、`VELOCITY `、`X_STEP_DISTANCE`等参数,然后运行scan_top.py进行扫描，扫描结果保存在img_output文件夹下，以csv格式保存。
@@ -25,6 +34,7 @@
 | `scan_devices.py` | 通过 PyVISA 发现仪器，并扫描指定局域网网段的 SCPI 端口。 |
 | `test/read_peak_test.py` | 连接 R&S FSW-50，执行峰值搜索并读取频率和功率。 |
 | `scan_top.py` | 每次移动机械台后读取一次频谱峰值，并将位置、频率和功率保存为 CSV。 |
+| `thz_imaging.py` | 统一配置和交互入口，整合回原点、WASD 手动控制、扫描及扫描后绘图。 |
 | `pyMcc.py` | 提供 `MoCtrlCard` 运动控制接口，包括串口/网络连接、位置和状态查询、单轴/轴组运动等。 |
 | `test/test_move.py` | 交互式单轴相对运动测试：选择串口和轴号，输入距离和速度，确认后执行并监测运动。 |
 | `return_origin.py` | 检测前将机械台依次移动到本次实验的 X、Y 中心绝对位置，支持直接运行或导入函数调用。 |
