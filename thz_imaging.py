@@ -281,6 +281,96 @@ def run_manual_mode(settings):
                 )
 
 
+def check_spectrum_analyzer(settings):
+    """Check the configured VISA connection and report the instrument ID."""
+    resource_manager = None
+    instrument = None
+    print("Checking spectrum analyzer connection...")
+    try:
+        resource_manager = pyvisa.ResourceManager("@py")
+        instrument = cast(
+            Any,
+            resource_manager.open_resource(
+                settings.visa_address, open_timeout=settings.visa_timeout_ms
+            ),
+        )
+        instrument.timeout = settings.visa_timeout_ms
+        instrument.read_termination = "\n"
+        instrument.write_termination = "\n"
+        instrument_id = instrument.query("*IDN?").strip()
+        if not instrument_id:
+            raise RuntimeError("The instrument returned an empty *IDN? response.")
+        print("Spectrum analyzer: connected")
+        print("  VISA address: {}".format(settings.visa_address))
+        print("  *IDN?: {}".format(instrument_id))
+    except Exception as exc:
+        print("Spectrum analyzer: connection failed")
+        print("  {}".format(exc))
+    finally:
+        if instrument is not None:
+            try:
+                instrument.close()
+            except Exception as exc:
+                print("  Warning: failed to close spectrum analyzer: {}".format(exc))
+        if resource_manager is not None:
+            try:
+                resource_manager.close()
+            except Exception as exc:
+                print("  Warning: failed to close VISA resource manager: {}".format(exc))
+
+
+def check_motor_controller(settings):
+    """Check the configured COM connection and show the current XY position."""
+    card = MoCtrlCard()
+    initialized = False
+    print("Checking motor controller connection...")
+    try:
+        available_ports = [
+            port.device for port in card.MoCtrCard_GetAvailablePorts()
+        ]
+        if settings.motor_port not in available_ports:
+            print("Motor controller: connection failed")
+            print(
+                "  Configured port {} is unavailable (found: {}).".format(
+                    settings.motor_port,
+                    ", ".join(available_ports) if available_ports else "none",
+                )
+            )
+            return
+
+        result = card.MoCtrCard_Initial(settings.motor_port)
+        require_ok(card, result, "Initialize motion controller")
+        initialized = True
+        positions = {}
+        for axis_id, axis_name in (
+            (settings.x_axis_id, "X"),
+            (settings.y_axis_id, "Y"),
+        ):
+            result, position = card.MoCtrCard_GetAxisPos(axis_id)
+            require_ok(card, result, "Read {} axis position".format(axis_name))
+            positions[axis_name] = position[0]
+
+        print("Motor controller: connected")
+        print("  COM port: {}".format(settings.motor_port))
+        print("  X position: {:.6f}".format(positions["X"]))
+        print("  Y position: {:.6f}".format(positions["Y"]))
+    except Exception as exc:
+        print("Motor controller: connection failed")
+        print("  {}".format(exc))
+    finally:
+        if initialized:
+            try:
+                result = card.MoCtrCard_UnLoad()
+                if result != card.FUNRESOK:
+                    print(
+                        "  Warning: controller unload failed (result: {}).".format(
+                            result
+                        )
+                    )
+            except Exception as exc:
+                print("  Warning: failed to unload controller: {}".format(exc))
+
+
 def run_scan_mode(settings):
     configure_scan_module(settings)
     os.makedirs(settings.output_directory, exist_ok=True)
@@ -340,6 +430,8 @@ def print_menu():
     print("  1. Return to configured origin")
     print("  2. WASD manual stage control")
     print("  3. Scan and plot")
+    print("  4. Check spectrum analyzer connection")
+    print("  5. Check motor connection and XY position")
     print("  q. Quit")
 
 
@@ -359,8 +451,12 @@ def main():
                 run_manual_mode(CONFIG)
             elif choice in ("3", "scan", "s"):
                 run_scan_mode(CONFIG)
+            elif choice in ("4", "spectrum", "visa"):
+                check_spectrum_analyzer(CONFIG)
+            elif choice in ("5", "motor", "stage"):
+                check_motor_controller(CONFIG)
             else:
-                print("Unknown selection; choose 1, 2, 3, or q.")
+                print("Unknown selection; choose 1, 2, 3, 4, 5, or q.")
         except KeyboardInterrupt:
             print("\nOperation interrupted.")
         except Exception as exc:

@@ -10,9 +10,11 @@
   conda run -n py37 python thz_imaging.py
   ```
 
-  启动后可在命令行反复选择“回原点”“WASD 手动控制”“执行扫描”。扫描 CSV 写入完成后会立即生成同名 PNG 图片，再返回菜单。
+  启动后可在命令行反复选择“回原点”“WASD 手动控制”“执行扫描”“检查频谱仪连接”“检查电机连接”。扫描 CSV 写入完成后会立即生成同名 PNG 图片，再返回菜单。
 
   手动控制模式与 `manual_stage_control.py` 的操作一致：`W/S` 控制 Y 轴正/负方向，`A/D` 控制 X 轴负/正方向，`Q` 退出，`Ctrl+C` 会尝试急停 X、Y 两轴。手动步长在统一入口 `CONFIG` 的 `manual_x_step_distance`、`manual_y_step_distance` 中预先修改，速度和加速度分别由 `manual_velocity`、`manual_acceleration` 设置。
+
+  “检查频谱仪连接”会连接配置的 VISA 地址并查询 `*IDN?`；“检查电机连接”会检查配置的 COM 端口、初始化控制卡并显示当前 X/Y 坐标，检查完成后自动释放连接。
 - 如需要手动控制机械台移动，用于找初始位置，运行 `manual_stage_control.py`。
 - 如需要自行规定初始位置，只需要修改return_origin.py中的`ORIGIN_X`和`ORIGIN_Y`参数。
 - 如需要运行扫描，修改scan_top.py文件中的`X_POINTS`、`VELOCITY `、`X_STEP_DISTANCE`等参数,然后运行scan_top.py进行扫描，扫描结果保存在img_output文件夹下，以csv格式保存。
