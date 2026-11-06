@@ -13,18 +13,18 @@ from return_origin import return_to_origin
 
 
 # Adjust scan and connection parameters here before running.
-MOTOR_PORT = "COM5"
-X_POINTS = 75
-Y_POINTS = 125
-X_STEP_DISTANCE = 0.4  # Sign selects the direction.
-Y_STEP_DISTANCE = 0.4  # Sign selects the direction.
+MOTOR_PORT = "COM7"
+X_POINTS = 35
+Y_POINTS = 80
+X_STEP_DISTANCE = 1  # Sign selects the direction.
+Y_STEP_DISTANCE = 1  # Sign selects the direction.
 VELOCITY = 10.0
 ACCELERATION = 0.0  # 0 uses the acceleration configured in the controller.
 MOVE_TIMEOUT = 60.0  # Seconds allowed for each motor move.
 POLL_INTERVAL = 0.2  # Seconds between motor state queries.
 STATUS_QUERY_RETRIES = 3  # Retries for a transient controller status failure.
 STATUS_QUERY_RETRY_DELAY = 0.3  # Seconds between status-query retries.
-SETTLE_TIME = 0.5  # Seconds to wait after the controller reports motion complete.
+SETTLE_TIME = 0.2  # Seconds to wait after the controller reports motion complete.
 RETURN_TO_ORIGIN = True
 ORIGIN_TIMEOUT = 120.0  # Seconds allowed for each origin move.
 
